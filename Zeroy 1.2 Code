@@ -1,12 +1,12 @@
 '''
 *********************************************************************************
                                       Zeroy
-                                       1.13
+                                       1.2
 *********************************************************************************
 '''
 def rules():
     print('*'*25,'\n')
-    print('Welcome to Zeroy 1.13!. Zeroy is a dungeon crawler where you have to try to make it as far as you can. The game has no end.\n')
+    print('Welcome to Zeroy 1.2!. Zeroy is a dungeon crawler where you have to try to make it as far as you can. The game has no end.\n')
     print('The game takes place in the fictional dimension of Zeroy, a warped void between worlds. Powered by a chaotic energy,')
     print('the void creates fighters (you) to battle endlessly with the spawn of the worlds that are interconnected with Zeroy to keep reality from imploding.\n')
     print('Eras, places, and people all collide in this epic journey.')
@@ -35,6 +35,8 @@ def rules():
     
 import random
 import math
+import json
+import sys
 import os
 os.system("mode con cols=160 lines=2000")
 
@@ -274,7 +276,7 @@ def spawn_shop(l):
             print('Please enter a real answer',aw())
     return [nae,weapons,potions,go]
     
-#reference
+#reference player
 def name(c):
     return c[0]
 def healthmax(c):
@@ -296,9 +298,26 @@ def gold(c):
 def xp(c):
     return c[8]
 def l(c):
-    return c[6]
+    global level
+    return level
 def sg(c):
     return c[10]
+
+#reference weapon
+def weapon_strength(w):
+    return w[1]
+def weapon_defense(w):
+    return w[2]
+def weapon_accuracy(w):
+    return w[3]
+def weapon_speed(w):
+    return w[4]
+def weapon_name(w):
+    return w[5]
+def weapon_level(w):
+    return w[6]
+def weapon_cost(w):
+    return w[7]
 
 #display
 def potion_stats(c):
@@ -339,25 +358,25 @@ def display_stats(c):
     print('Level',level,'hero.')
     print('*'*10)
     print('- Health:',health(c),'/',healthmax(c))
-    if weapon(c)[1] > 0:
-        print('- Strength:',strength(c),'+',weapon(c)[1])
+    if weapon_strength(weapon(c)) > 0:
+        print('- Strength:',strength(c),'+',weapon_strength(weapon(c)))
     else:
         print('- Strength:',strength(c))
-    if weapon(c)[2] > 0:
-        print('- Defense:',defense(c),'+',weapon(c)[2])
+    if weapon_defense(weapon(c)) > 0:
+        print('- Defense:',defense(c),'+',weapon_defense(weapon(c)))
     else:
         print('- Defense:',defense(c))
-    if weapon(c)[3] > 0:
-        print('- Accuracy:',accuracy(c),'+',weapon(c)[3])
+    if weapon_accuracy(weapon(c)) > 0:
+        print('- Accuracy:',accuracy(c),'+',weapon_accuracy(weapon(c)))
     else:
         print('- Accuracy:',accuracy(c))
-    if weapon(c)[4] > 0:
-        print('- Speed:',speed(c),'+',weapon(c)[4])
+    if weapon_speed(weapon(c)) > 0:
+        print('- Speed:',speed(c),'+',weapon_speed(weapon(c)))
     else:
         print('- Speed:',speed(c))
     print('*'*10)
-    print('- Weapon Name:',weapon(c)[5])
-    print('Level',weapon(c)[6],'weapon')
+    print('- Weapon Name:',weapon_name(weapon(c)))
+    print('Level',weapon_level(weapon(c)),'weapon')
     print('*'*10)
     print('- Available XP:',xp(c))
     print('- Gold:',gold(c))
@@ -420,6 +439,7 @@ global alive
 global fighters
 global kills
 global score
+global you
 global prefix_words
 global weapon_words
 global monster_words
@@ -434,6 +454,19 @@ global cont
 global plays
 global potion_words
 global title
+global shop_accumulator
+global fight_accumulator
+global current_room
+global using_save
+global event_generator
+global monster
+monster = None
+plays = 0
+you = None
+current_room = ''
+shop_accumulator = 0
+fight_accumulator = 0
+event_generator = 0
 title = """
           _____                    _____                    _____                   _______               _____          
          /\    \                  /\    \                  /\    \                 /::\    \             |\    \         
@@ -459,74 +492,81 @@ _______________\:::\____\/:::/__\:::\   \:::\____\/:::/  \:::\   \:::|    ||:::|
 
 """
 score = 0
-prefix_words = ['beeg','huge','large','massive','small','brown','purple','green','red','big','chunky','profound','gargantuan','normal','a corpse of a',
-                       'puny','simple','dumb','smart','crummy','powerful','crunchy','microscopic','one-handed','two-handed','three-handed',
-                       'squishy','lumpy','round','2D','4D','short','tall','veiny','slippery','fat','emaciated','bloodshot','cracked','angry',
-                       'sad','happy','murderous','lame','bronze','iron','black','paper','cardboard','glass','three-story tall','naked','slimy',
-                       'blank','sweaty','crazy','screaming','purple','t-posing','demonic','armor-clad','dying','newly-born','Jewish','ghastly',
-                       'ghostly','ridiculous','unfunny','burning','frozen','poisonous','unfulfilled','portable','tactical','wide','silenced','anti-air',
-                       'super','starchy','clear','opaque','dumb','exploding','seething','cursed','cringey','annoying','russian','american','bosnian',
-                       'strategic','canadian','dead','living','australian','ukranian','mexican','lunar','space-age','prehistoric','invincible',
-                       'unbeatable','hilarious','poo-covered','leaking','dry','skinless','fat','gold','silver','bronze','obscene','titular',
-                       'male','female','transgender','spiky','electrified','flaming','fuming','obese','erect','leather','cloth','bright','bald',
-                       'white','beige','towering','long','technological','cyborg','weezing','gassy','ethereal','fortified','strengthened',
-                       'inspiring','wild','exhilerating','master','funny','beautiful','orange','pink','magenta','schizophrenic','gucci',
-                       'greasy','speedy','oily','sloppy','despicable','smelly','fresh','optimistic','depressed','3D','buff','salty',
+prefix_words = ['beeg','huge','large','massive','small','brown','purple','green','red','big','chunky','profound','gargantuan','normal','corpse of a','blighted','eternal',
+                       'puny','simple','dumb','smart','crummy','powerful','crunchy','microscopic','one-handed','two-handed','three-handed','cold','hot','sexist','minimal wear',
+                       'squishy','lumpy','round','2D','4D','short','tall','veiny','slippery','fat','emaciated','bloodshot','cracked','angry','supreme brand','well worn',
+                       'sad','happy','murderous','lame','bronze','iron','black','paper','cardboard','glass','three-story tall','naked','slimy','gilded','nasty','field-tested',
+                       'blank','sweaty','crazy','screaming','purple','t-posing','demonic','armor-clad','dying','newly-born','Jewish','ghastly','nondescript','prickly',
+                       'ghostly','ridiculous','unfunny','burning','frozen','poisonous','unfulfilled','portable','tactical','wide','silenced','anti-air','factory new',
+                       'super','starchy','clear','opaque','dumb','exploding','seething','cursed','cringey','annoying','russian','american','bosnian','lavish','battle-scarred',
+                       'strategic','canadian','dead','living','australian','ukranian','mexican','lunar','space-age','prehistoric','invincible','offbeat','upset','tawdry',
+                       'unbeatable','hilarious','poo-covered','leaking','dry','skinless','fat','gold','silver','bronze','obscene','titular','pagan','scientific',
+                       'male','female','transgender','spiky','electrified','flaming','fuming','obese','erect','leather','cloth','bright','bald','swanky','muddled',
+                       'white','beige','towering','long','technological','cyborg','weezing','gassy','ethereal','fortified','strengthened','outdated, racially insensitive depiction of a',
+                       'inspiring','wild','exhilerating','master','funny','beautiful','orange','pink','magenta','schizophrenic','gucci','oddly-attractive',
+                       'greasy','speedy','oily','sloppy','despicable','smelly','fresh','optimistic','depressed','3D','buff','salty', 'upside-down','flaccid',
                        'potassium-rich','emerald','ruby','jade','boosted','juiced','oozing','hard','steel','platinum','invisible','astral','Soulja Boy brand',
-                       'PepsiCo sponsored','shady','untrustworthy','sly','troublesome']
+                       'PepsiCo sponsored','shady','untrustworthy','sly','troublesome','uranium','radioactive','violent','pacifist','buddhist','christian',
+                       'daoist','hindu','grimy','vegetarian','vegan','carnivorous','unassuming','bland','default', 'NSFW', 'indescribable']
 potion_words = ['bottle of','draught of','potion of','greater spell of','bottle of Gatorade flavored to','lesser draught of','lesser potion of',
                        'awesome mixture of','jungle juice of','small glass of','tall glass of','a pinch of','handful of','greatest draught of',
                        'capri sun flavored to','baby bottle of','lesser spell of','shot glass of','swig of','mug of','maximum potion of','super glass of',
                        'mega drink of','flask of','pill bottle of','elixir of','greater elixir of','lesser elixir of','jug of','chug jug of',
-                       'gulp of','big gulp of','sip of','gallon of','pint of','liter of']
+                       'gulp of','big gulp of','sip of','gallon of','pint of','liter of', 'a few drops of', 'a whole barrel of','vial of']
 weapon_words = ['sword','gun','bow','glock','AR-15 because your character is a Democrat and can\'t tell the difference', 'spear','M4A4',
-                       'bazooka','knife','butterknife','shiv','toothbrush','lightsaber','lock of Tommy Wiseau\'s hair','scimitar','AK-47','grenade',
-                       'rodent','midget','MP5','AWP','SCAR','club','bullpup rifle','hand wraps','rock','pencil','rolled-up newspaper',
-                       'fly swatter','staff','axe','guitar','slingshot','ray gun','shotgun','USP','stick','twig','branch','shield','chainsaw',
+                       'bazooka','knife','butterknife','shiv','toothbrush','lightsaber','lock of Tommy Wiseau\'s hair','scimitar','AK-47','grenade','lance',
+                       'rodent','midget','MP5','AWP','SCAR','club','bullpup rifle','hand wraps','rock','pencil','rolled-up newspaper','musket',
+                       'fly swatter','staff','axe','guitar','slingshot','ray gun','shotgun','USP','stick','twig','branch','shield','chainsaw','vial of AIDS',
                        'pole','crutch','chair','hammer','hookblade','hook','golf club','bat','spatula','shovel','railgun','pan','shoe','gauntlets',
                        'spoon','knife','fork','pitchfork','keyboard','scissors','bottle of pills','cane','spork','nailgun','leg','arm','spine',
                        'hairbrush','trident','NERF gun','belt','sock','hand cannon','whip','flip-flops','grappling hook','jar of marmalade',
                        'fire axe','crowbar','taser','P250','quintuple-barrel shotgun','gun with a really long barrel','blunderbuss','crossbow',
-                       'recurve bow','throwing daggers','steel-toed boots','brass knuckles','rake','trowel','mace','shuriuken','kunai',
-                       'cross','stake','marshmallow stick thing','garrote wire','khopesh','boxing gloves','unicorn horn','gladius',
-                       'foil','rapier','zweihänder','falchion','butterfly knife','claymore','dao','odachi','estoc','hamberge','javelin','quarterstaff']
-monster_words = ['medusa','slime','rat','werewolf','politician','terrorist','wyvern','book','former president George Bush','goblin','troll',
+                       'recurve bow','throwing daggers','steel-toed boots','brass knuckles','rake','trowel','mace','shuriuken','kunai','ranseur',
+                       'cross','stake','marshmallow stick thing','garrote wire','khopesh','boxing gloves','unicorn horn','gladius','sickle',
+                       'foil','rapier','zweihänder','falchion','butterfly knife','claymore','dao','odachi','estoc','hamberge','javelin','quarterstaff','paper airplane',
+                       'stapler','glaive','pike','barbed wire whip','car battery','tec-9','glockinator','slab','nutcracker','six-shooter','suspiciously phallic object',
+                       'spray paint can','paintbrush','fetus in a jar','MOAB','beretta','g11','phallic object','bag of flaming feces','thumb tack',
+                       'propaganda poster','Nickelback cd','laser tag gun','super soaker','bouncing betty','tooth','jawbone','bayonet','clarinet','skateboard','longboard',
+                       'laptop','mouse (the computer kind)','mouse (the filled-with-blood kind)','gardening hoe','oar']
+monster_words = ['medusa','slime','rat','werewolf','politician','terrorist','wyvern','book','former president George Bush','goblin','troll','woman',
                         'dragon','pokemon','businessman','fly','roomba','vampire','mummy','munster','trash can','zombie','giant','shrimp','deer',
                         'activist','solicitor','murloc','elf','wolf','dire wolf','crab','bat','creeper','enderman','reaper','stalker','man','fish',
                         'bird','chicken','kaiju','sea sponge','redditor','monster','fiend','creature','nightmare','Steve','pile of goo','fast food worker',
-                        'soccer mom', 'tornado','catfish','russian','insurgent','man','midget','boss','person','skeleton','spider','bastard',
-                        'hobo','protestor','congressman','mage','wizard','guy','girl','fetus','heart','ghost','kappa','ghast','silverfish',
-                        'wurm','worm','bass','falcon','eagle','ogre','knight','frenchman','liar','dj','pitbull','pop star','addict','slacker',
-                        'wormsnake','owl','hippie','snail','slug','reporter','journalist','jackalope','spirit','demigod','stapler','paperweight',
-                        'cup of water','solicitor','doctor','comedian','coder','sweatlord','gamer','turtle','actor','cthulhu','gorgon','burger','burrito',
-                        'ghoul','cockroach','centipede','flatworm','ringworm','vulture','cheese','spot of mold','flytrap','sailor','pirate','witch',
-                        'sorcerer','cat','tiger','walrus','penguin','condor','puffin','wolverine','marsupial','kangaroo','copy of MAD magazine','Todd Howard',
-                        'terminator','transformer','decepticon','fitted bed sheet','elemental','pile of bananas','bee','swarm of bees','wasp',
-                        'ant','dinosaur','ringwraith','breakdancer','starfish','husk','viking','samurai','conquistador','soldier','ninja','captain',
-                        'ice cream vendor','nonthreatening NPC','member of the House of Representatives','public nuisance','vagabond',
-                        'necromorph','furry','weeb','chad','virgin','hypebeast','pile of feces','poop sock','toddler']
-exclamations = ['Oh god','Dear me','Jesus','Look out','Jeez','Oh','Easy','Good luck','Darn','****','Get it','Well','That thing is hideous',
-                       '*E1M1 starts playing*','Everyone in the vicinity looks on in horror','Don\'t touch that','Look at that',
-                       'Run for the hills','I need to change my pants','Don\'t look now','*You collapse with fear*','Goodness',
-                       'Save the children','You should run','This is nothing','Weaksauce','Sad','Get ready','Pull up your trousers',
-                       'Cheese on crackers','Oops','Dun dun dun','*The ground quakes*','*The sun gets eclipsed*','*A powerful force approaches*',
-                       'I can\'t watch','This is terrible','Butter on toast','Bad day','This is the worst','God save the Queen','I\'m out',
-                       'Bro','Hey bud','Time to fight','Look over yonder','By the pope','*I soil myself*','*Your eyes cannot believe what they are seeing']
+                        'soccer mom', 'tornado','catfish','russian','insurgent','man','midget','boss','person','skeleton','spider','bastard','oni','tanuki','alien',
+                        'hobo','protestor','congressman','mage','wizard','guy','girl','fetus','heart','ghost','kappa','ghast','silverfish','uwan','golem',
+                        'wurm','worm','bass','falcon','eagle','ogre','knight','frenchman','liar','dj','pitbull','pop star','addict','slacker','furby','python','cobra',
+                        'wormsnake','owl','vegan','vegetarian','hippie','snail','slug','reporter','journalist','jackalope','spirit','demigod','stapler','paperweight',
+                        'cup of water','solicitor','doctor','comedian','coder','sweatlord','gamer','turtle','actor','cthulhu','gorgon','burger','burrito','griffin'
+                        'ghoul','cockroach','centipede','flatworm','ringworm','vulture','cheese','spot of mold','flytrap','sailor','pirate','witch','lindworm',
+                        'sorcerer','cat','tiger','walrus','penguin','condor','puffin','wolverine','marsupial','kangaroo','copy of MAD magazine','Todd Howard','dryad',
+                        'terminator','transformer','decepticon','fitted bed sheet','elemental','pile of bananas','bee','swarm of bees','wasp','krampus','charon','centaur',
+                        'ant','dinosaur','ringwraith','breakdancer','starfish','husk','viking','samurai','conquistador','soldier','ninja','captain','tarasque','drude','cyclops','bigfoot',
+                        'ice cream vendor','nonthreatening NPC','member of the House of Representatives','public nuisance','vagabond','buddhist','daoist','christian','succubus','incubus',
+                        'necromorph','furry','weeb','chad','virgin','hypebeast','pile of feces','poop sock','toddler','leviathan','chupacabra']
+exclamations = ['Oh god','Dear me','Jesus','Look out','Jeez','Oh','Easy','Good luck','Darn','****','Get it','Well','That thing is hideous','Testicular torsion',
+                       '*E1M1 starts playing*','Everyone in the vicinity looks on in horror','Don\'t touch that','Look at that','Holy mother of gym shorts',
+                       'Run for the hills','I need to change my pants','Don\'t look now','*You collapse with fear*','Goodness','*Your celebration is cut short*',
+                       'Save the children','You should run','This is nothing','Weaksauce','Sad','Get ready','Pull up your trousers','This enemy might be stronger than you',
+                       'Cheese on crackers','Oops','Dun dun dun','*The ground quakes*','*The sun gets eclipsed*','*A powerful force approaches*', 'That\'s just unsanitary'
+                       'I can\'t watch','This is terrible','Butter on toast','Bad day','This is the worst','God save the Queen','I\'m out', 'Indescribable',
+                       'Bro','Hey bud','Time to fight','Look over yonder','By the pope','*I soil myself*','*Your eyes cannot believe what they are seeing', 'This might be the coolest thing I\'ve ever seen']
 damage_words = ['walloped','attacked','decimated','headshotted','420 Shrekscoped','tore','whacked','hit','grinded','sat on','arm barred','kicked','sliced',
                        'cried on','shouted expletives at','said mean things to','punched','impaled','quickscoped','crane-kicked','took their repressed anger out on',
-                       'broke','did nothing to','coldy looked at','said mean things to','buried','slapped','caressed','back-handed','karate chopped','headbutted',
-                       'evaporated','slaughtered','maimed','atomized','kissed','deadified','curbstomped','poked','stared coldly at','bit','wedgied','slashed',
+                       'broke','did nothing to','said mean things to','buried','slapped','caressed','back-handed','karate chopped','headbutted','gave AIDS to',
+                       'evaporated','slaughtered','maimed','atomized','kissed','deadified','curbstomped','poked','stared coldly at','bit','wedgied','slashed', 'cucked',
                        'expressed their feelings for','failed to return the love of','cut up','decapitated','broke every bone in the body of','fatalitied','destroyed',
                        'whip nae nae\'d on','got into a Hummer and ran over','drop kicked','down b\'d','piggyback rode','leg swept','crunched','imploded',
-                       'disassembled','dissociated','burnt','soaked','flattened','pulled a brutality on','landed a 999 hit combo','laser-eyed',
-                       'leg-locked','tore the ears off of','knocked all of the teeth out of','ripped off all of the limbs of']
+                       'disassembled','dissociated','burnt','soaked','flattened','pulled a brutality on','landed a 999 hit combo','laser-eyed', 'pulled a sneaky on',
+                       'leg-locked','tore the ears off of','knocked all of the teeth out of','ripped off all of the limbs of','eviscerated','crushed','eliminated']
 place_words = ['a barn','a hobo town',' an outhouse','an abandoned shack','a forest','a crowded street','a shopping mall','a strip mall','a sub-dungeon','a crashed space shuttle',
                       'a parliament building','a small town','a small hole','a cave','an abandoned building','an alcove','an exact recreation of the White House','a game show stage',
                       'a time warp','an adjacent room','a sideroom','a bathroom','a big hole','an AA meeting','an embassy','another video game','our game design class','a third world country',
                       'a big cave','a lake','a volcano','a giant house','the Student Center','a group of people playing an exciting game of Chicken Scratch','a web forum',
                       'an 80s music video','a bathroom','a bedroom','an adjacent dorm','a McDonald\'s at exactly 1:00 A.M.','a White Castle','a salvation army store','a mountain',
-                      'this game\'s code','the developer\'s pc','a 1950s diner','a basketball game','a military compound','a farm','a college campus',
-                      'a Home Depot','a hot dog stand','an amusement park','a movie theater','a public pool','Syria','a CVS','a castle','a train','a car','a bus']
+                      'this game\'s code','the developer\'s pc','a 1950s diner','a basketball game','a military compound','a farm','a college campus', 'the world\'s last remaining Blockbuster',
+                      'a Home Depot','a hot dog stand','an amusement park','a movie theater','a public pool','Syria','a CVS','a castle','a train','a car','a bus','a shady alleyway','Tilted Towers',
+                      'a thrift store','an ice cream parlor','a speakeasy','the center of the Earth','an ant hill','the DMV','an Amazon warehouse', 'a ziggurat', 'a pyramid with a fish on it', 'a kid\'s birthday party',
+                      'a pizza place', 'a park', 'Big Ben', 'a university campus']
 movement_words = ['slide into','jump into','jump on','walk to','run to','jog to','teleport to','fall onto','sprint to','fight your way to','limp to','fly to',
                          'montage over to','bike over to','find a pogo stick and use it to go to','hail a cab and ride to','drive to','ride the CTA red line to','leave this place and go to',
                          'cry until a nearby monster carries you to','faint and wake up in','fall through the floor and end up in','skip a long cutscene and end up in',
@@ -537,14 +577,14 @@ movement_words = ['slide into','jump into','jump on','walk to','run to','jog to'
                          'play a T.V. show transition and find yourself in','let the credits roll and wait until the end to find that the story continues in','dream that you end up in',
                          'sneak into','swim in a','play a boombox in front of a','disppear into a cloud of smoke and reappear in','fly in a hang glider over to','crawl on all fours over to',
                          'attack the ground, blasting through the other side of the planet, and end up in','take a break from the game, get a job, get married, get divorced, fall into alcholism, and get back into the game, only to find that you have landed in',
-                         'meander off to','dropkick your way into','hitch a ride on a bird which drops you into']
+                         'meander off to','dropkick your way into','hitch a ride on a bird which drops you into', 'have a flashback to the time when you were at']
 affirmations = ['Awesome!','Cool!','Not bad.','Good job.','Nice.','I knew you had it in ya\'.','Cool beans.','They\'re over and done with.','Wow, you showed them.',
-                       'That was mean, but I am only a narrator and am not programmed to reprimand you on your horrible behavior.','Keep it up, champ.',
-                       'That was hot.','Couldn\'t have done it better myself.','Doomguy would be proud.','You kiss your mother with those fists?','Nobody can stop you.',
-                       'Nobody can stop you, except for maybe the next guy.','Are you bored yet? I want to go home.','Another day, another massacre.','Wow, that was violent',
-                       'You barely even hit them!','Don\'t worry, they weren\'t very nice anyways.','You have problems.','Keep going! You\'re almost at the end',
-                       'MLG pro right here.','Best fighter in the arena.','Even I don\'t do this well usually.','You miss less hits later on I swear.',
-                       'I love you.','They will harbor a hatred for you for the rest of their life.','You just gonna leave them there?']
+                       'That was mean, but I am only a narrator and am not programmed to reprimand you on your horrible behavior.','Keep it up, champ.','I am afraid of you now.',
+                       'That was hot.','Couldn\'t have done it better myself.','Doomguy would be proud.','You kiss your mother with those fists?','Nobody can stop you.','You didn\'t have to fight them y\'know.',
+                       'Nobody can stop you, except for maybe the next guy.','Are you bored yet? I want to go home.','Another day, another massacre.','Wow, that was violent','Leaving the conscience at home for today I see.',
+                       'You barely even hit them!','Don\'t worry, they weren\'t very nice anyways.','You have problems.','Keep going! You\'re almost at the end.','Clean up the mess at least.',
+                       'MLG pro right here.','Best fighter in the arena.','Even I don\'t do this well usually.','You miss less hits later on I swear.','Quickly! Go through their pockets!',
+                       'I love you.','They will harbor a hatred for you for the rest of their life.','You just gonna leave them there?','You woke up the whole neighborhood with that one']
 mean_words = ['numbnuts','doofus','idiot','wiseguy','silly','illiterate','dummy','toilethead','troglodyte','weakling','liberal','brainlet','dingus','wiggly buddy',
               'flathead','you simpleton','wacky','dingaling','knucklehead mcspazatron','you pickle','you dunce','you juicy tangerine','big boy','you failure',
               'you single-celled organism','or I will','or I\'ll do nasty things to you','or else','you slapwhackus','or I will shut this game off','and pay better attention next time']
@@ -554,6 +594,91 @@ kills = 0
 alive = True
 cont = True
 fighters = []
+
+#file handling
+def save():
+    global using_save
+    if using_save:
+        print('<saving...>\n')
+        save_data = {}
+        save_data['fighters'] = fighters
+        save_data['plays'] = plays
+        save_data['you'] = you
+        save_data['level'] = level
+        save_data['alive'] = alive
+        save_data['current_room'] = current_room
+        save_data['shop_accumulator'] = shop_accumulator
+        save_data['fight_accumulator'] = fight_accumulator
+        save_data['event_generator'] = event_generator
+        save_data['monster'] = monster
+        save_data['random'] = random.getstate()
+        with open('zeroy_save.json', 'w') as outfile:
+            json.dump(save_data, outfile, indent=1)
+
+def apply_save():
+    global fighters
+    global plays
+    global you
+    global level
+    global alive
+    global shop_accumulator
+    global fight_accumulator
+    global current_room
+    global monster
+    if os.path.exists('zeroy_save.json'):
+        with open('zeroy_save.json') as json_file:
+            data = json.load(json_file)
+            fighters = data['fighters']
+            plays = data['plays']
+            you = data['you']
+            level = data['level']
+            alive = data['alive']
+            current_room = data['current_room']
+            shop_accumulator = data['shop_accumulator']
+            fight_accumulator = data['fight_accumulator']
+            event_generator = data['event_generator']
+            monster = data['monster']
+            data['random'][1] = tuple(data['random'][1])
+            data['random'] = tuple(data['random'])
+            random.setstate(data['random'])
+    else:
+        save()
+
+def write_words():
+    save_data = {}
+    save_data['prefix_words'] = prefix_words
+    save_data['potion_words'] = potion_words
+    save_data['weapon_words'] = weapon_words
+    save_data['monster_words'] = monster_words
+    save_data['exclamations'] = exclamations
+    save_data['damage_words'] = damage_words
+    save_data['place_words'] = place_words
+    save_data['movement_words'] = movement_words
+    save_data['affirmations'] = affirmations
+    save_data['mean_words'] = mean_words
+    with open('zeroy_data.json','w') as outfile:
+        json.dump(save_data,outfile,indent=2)
+
+#write all the words to the game contained in zeroy_data
+if os.path.exists('zeroy_data.json'):
+    with open('zeroy_data.json') as json_file:
+        data = json.load(json_file)
+        for array_name in data:
+            if len(data[array_name]) < 1:
+                crash = input("WORD LIST HAS INVALID LENGTH. EXITING...\n")
+                sys.exit()
+        prefix_words = data['prefix_words']
+        potion_words = data['potion_words']
+        weapon_words = data['weapon_words']
+        monster_words = data['monster_words']
+        exclamations = data['exclamations']
+        damage_words = data['damage_words']
+        place_words = data['place_words']
+        movement_words = data['movement_words']
+        affirmations = data['affirmations']
+        mean_words = data['mean_words']
+else:
+    write_words()
 
 #gameplay
 def saving_grace(you):
@@ -643,9 +768,15 @@ def attack(c,a):
 def fight(l,you):
     global kills
     global alive
+    global monster
+    global current_room
+    global using_save
+    save()
+    current_room = 'fight'
     print('*'*25,'\n')
     attacking = True
-    monster = spawn_monster(l)
+    if monster == None:
+        monster = spawn_monster(l)
     print('You',mow(),plw(),'and find a monster\n')
     if monster[0][0] in 'aeiou':
         print(e(),', it\'s an',monster[0])
@@ -661,12 +792,14 @@ def fight(l,you):
                 saving_grace(you)
                 return
             elif run == 'restart':
+                monster = None
                 restart()
                 return
             elif run == 'yes':
                 r = random.randint(0,5)
                 if speed(you)+r+weapon(you)[4] > 4:
                     print('You ran away successfully.')
+                    monster = None
                     return
                 else:
                     runt == 0
@@ -678,6 +811,7 @@ def fight(l,you):
                         if health(you) <= 0:
                             attacking = False
                             alive = False
+                            monster = None
                             return
                     else:
                         pass
@@ -706,9 +840,11 @@ def fight(l,you):
                 attack(monster,you)
                 if health(you) > 0:
                     attack(you,monster)
+        save()
         if health(you) <= 0:
             attacking = False
             alive = False
+            monster = None
             return
         if health(monster) <= 0:
             print(name(you),'defeated',name(monster))
@@ -717,6 +853,7 @@ def fight(l,you):
             xpgenerate(monster[10],you)
             kills += 1
             attacking = False
+            monster = None
     print('\n')
 
 def health_boost():
@@ -727,7 +864,7 @@ def health_boost():
     print('Heals you for',health_boost,'damage.\n')
     cost = 10+level
     print('Cost:',cost,'\n')
-    return [cost,boost]
+    return [cost,health_boost]
 
 def sg_boost():
     global level
@@ -739,6 +876,9 @@ def sg_boost():
     return cost
               
 def shop(l,you):
+    global current_room
+    current_room = 'shop'
+    save()
     print('*'*25)
     keeper = spawn_shop(l)
     if keeper[3] == 'no':
@@ -770,14 +910,14 @@ def shop(l,you):
     healthboost = 0
     r = random.random()
     if r > .2:
-        health_boost()
+        boost = health_boost()
         itemsix = 'h'
-        healthboost = health_boost()[1]
-        costsix = health_boost()[0]
+        healthboost = boost[1]
+        costsix = boost[0]
     else:
-        sg_boost()
+        grace = sg_boost()
         itemsix = 's'
-        costsix = sg_boost()
+        costsix = grace
     shopping = 1
     stock = [1,1,1,1,1,1]
     while shopping == 1 and gold(you) > 0:
@@ -852,6 +992,9 @@ def shop(l,you):
     print('\n')
             
 def level_up(you):
+    global current_room
+    current_room = 'level_up'
+    save()
     print('*'*25)
     print('You come across a fountain...')
     print('You have:',xp(you),'xp to spend.')
@@ -925,12 +1068,94 @@ def play():
     global plays
     global alive
     global title
-    level = 0
+    global monster
+    global you
+    global shop_accumulator
+    global fight_accumulator
+    global using_save
+    global current_room
+    global event_generator
     cont = True
-    plays = 0
+    if you != None:
+        if current_room == 'fight':
+            fight(level,you)
+        elif current_room == 'shop':
+            shop(level,you)
+        elif current_room == 'level_up':
+            level_up(you)
+        while alive:
+            if fight_accumulator <= 0 and alive == True:
+                if fight_accumulator < 0:
+                    fight_accumulator = .5
+                fight(level,you)
+                fight_accumulator += .2
+                shop_accumulator -= .1
+                event_generator = random.random()
+            elif event_generator - fight_accumulator - shop_accumulator > .5 and alive == True:
+                fight(level,you)
+                fight_accumulator += .1
+                shop_accumulator -= .1
+                event_generator = random.random()
+            elif shop_accumulator <= 0 and alive == True:
+                if shop_accumulator < 0:
+                    shop_accumulator = .5
+                r = random.random()
+                if r > .6:
+                    level_up(you)
+                    shop_accumulator -= .1
+                    fight_accumulator = 0
+                    event_generator = random.random()
+                else:
+                    shop(level,you)
+                    shop_accumulator += .2
+                    fight_accumulator = 0
+                    event_generator = random.random()
+            elif event_generator - shop_accumulator - fight_accumulator < .3 and alive == True:
+                r = random.random()
+                if r > .4:
+                    shop(level,you)
+                    shop_accumulator += .1
+                    fight_accumulator = 0
+                    event_generator = random.random()
+                else:
+                    level_up(you)
+                    shop_accumulator -= .1
+                    fight_accumulator = 0
+                    event_generator = random.random()
+            elif alive == True:
+                level_up(you)
+                shop_accumulator -= .1
+                fight_accumulator = 0
+                event_generator = random.random()
+            else:
+                alive == False
+        print('You lose.')
+        print('You made it to level:',level)
+        display_stats(you)
+        print('\n')
+        print('In memory of',fighters)
+        print('\n')
+        print('You defeated',kills,'enemies.')
+        tr = 1
+        you = None
+        if using_save:
+            save()
+        while tr == 1:
+            contin = input('Continue? (yes or no)\n')
+            if contin == 'yes':
+                cont = True
+                print('\n')
+                print('Good luck.\n')
+                tr = 0
+            elif contin == 'no':
+                cont = False
+                print('\n')
+                print('Thanks for playing!')
+                print('-Steve')
+                tr = 0
+            else:
+                print('Please enter a real answer,',aw())
     while cont:
-        level = 0
-        alive = True
         print('\n'*2)
         print('*'*125)
         print('Hello, welcome to')
@@ -940,8 +1165,12 @@ def play():
         plays += 1
         print('*'*125)
         print('\n')
+        level = 0
+        kills = 0
+        alive = True
         you = create_character()
         fighters.append(name(you))
+        save()
         event_generator = random.random()
         fight_accumulator = 0
         shop_accumulator = 0
@@ -999,13 +1228,15 @@ def play():
         print('\n')
         print('You defeated',kills,'enemies.')
         tr = 1
+        you = None
+        if using_save:
+            save()
         while tr == 1:
             contin = input('Continue? (yes or no)\n')
             if contin == 'yes':
                 cont = True
                 print('\n')
                 print('Good luck.\n')
-                plays += 1
                 tr = 0
             elif contin == 'no':
                 cont = False
@@ -1019,15 +1250,12 @@ def play():
 go = input('Do you want to learn the game first? (type "yes")\n')
 if go == 'yes':
     rules()
-    play()
 else:
     print('\n')
-    play()
-    
-            
-    
-    
-    
-    
-
-
+using_save = input('Would you like to use the saving feature? (type "yes")\n')
+if using_save.lower() == "yes":
+    using_save = True
+    apply_save()
+else:
+    using_save = False
+play()
