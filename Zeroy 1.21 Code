@@ -1,12 +1,12 @@
 '''
 *********************************************************************************
                                       Zeroy
-                                       1.2
+                                      1.21
 *********************************************************************************
 '''
 def rules():
     print('*'*25,'\n')
-    print('Welcome to Zeroy 1.2!. Zeroy is a dungeon crawler where you have to try to make it as far as you can. The game has no end.\n')
+    print('Welcome to Zeroy 1.21!. Zeroy is a dungeon crawler where you have to try to make it as far as you can. The game has no end.\n')
     print('The game takes place in the fictional dimension of Zeroy, a warped void between worlds. Powered by a chaotic energy,')
     print('the void creates fighters (you) to battle endlessly with the spawn of the worlds that are interconnected with Zeroy to keep reality from imploding.\n')
     print('Eras, places, and people all collide in this epic journey.')
@@ -71,6 +71,9 @@ def aw():
 def potw():
     r = random.randint(1,len(potion_words)-1)
     return potion_words[r]
+def misw():
+    r = random.randint(1,len(miss_words)-1)
+    return miss_words[r]
 
 def random_word():
     letters = random.randint(2,10)
@@ -96,13 +99,20 @@ def random_word():
     return word
 
 def create_character():
+    global plays
     prefix = pw()
     if prefix[0] in 'aeiou':
         print('An',prefix,'figure approaches...')
     else:
         print('A',prefix,'figure approaches...')
-    name = input('What is its name?\n')
-    stat_boost = 5
+    trying = True
+    while trying: 
+        name = input('What is its name?\n')
+        if len(name) > 20:
+            print('Please make the name shorter, writing that whole thing out every time would give me carpal tunnel')
+        else:
+            trying = False
+    stat_boost = 5 + plays
     health = 3
     strength = 1
     defense = 1
@@ -444,6 +454,7 @@ global prefix_words
 global weapon_words
 global monster_words
 global exclamations
+global miss_words
 global place_words
 global movement_words
 global affirmations
@@ -585,6 +596,15 @@ affirmations = ['Awesome!','Cool!','Not bad.','Good job.','Nice.','I knew you ha
                        'You barely even hit them!','Don\'t worry, they weren\'t very nice anyways.','You have problems.','Keep going! You\'re almost at the end.','Clean up the mess at least.',
                        'MLG pro right here.','Best fighter in the arena.','Even I don\'t do this well usually.','You miss less hits later on I swear.','Quickly! Go through their pockets!',
                        'I love you.','They will harbor a hatred for you for the rest of their life.','You just gonna leave them there?','You woke up the whole neighborhood with that one']
+miss_words = ['shot, but they missed','totally whiffed that one. like, it wasn\'t even close','came super close on that one, but missed','missed','whiffed','failed to connect','did not hit their target','hit everything but their target',
+              'dreamt about landing their attack, but woke up just before they did','was too busy learning the meaning of friendship to land their hit','completely missed','totally missed','hit a part of their target\'s armor, dealing no damage',
+              'forgot to turn the safety off on their weapon','really needs to learn how to aim','has really low accuracy. no way that hit landed','played zeroy instead of attacking','tried to chase a butterfly','tripped over nothing and missed',
+              'forgot how to stand and fell over, missing their attack','felt really good about that one, but still missed','almost didn\'t miss','missed their target by less than a hair','missed their target by a planck\'s length',
+              'had their weapon jam','fell in love with their target for a moment and refused to attack','spent too long monologuing','tried to leave, but somehow couldn\'t','felt so bad for their opponent that they couldn\'t bear to attack',
+              'forgot to load their weapon before attacking','had to reassemble their weapon because they used it wrong like a dingus','got really tired and took a nap','went temporarily blind and missed','dropped their contact lens and couldn\'t aim',
+              'tried to rebel against god for his transgressions, failing to do so','shook a stick angrily... it didn\'t do anything','used splash, it wasn\'t very effective...','was too busy admiring their weapon','forgot to submit their turn',
+              'looked really stupid missing just then','missed twice in a row','missed three times in a row','missed four times in a row','missed five times in a row','missed so many times in a row that i lost count','tried to attack, but got sad instead',
+              'suddenly became a pacifist for one turn','ate a really nice piece of bread','started breakdancing to avoid the enemy\'s attacks','dropped their weapon. greasy hands']
 mean_words = ['numbnuts','doofus','idiot','wiseguy','silly','illiterate','dummy','toilethead','troglodyte','weakling','liberal','brainlet','dingus','wiggly buddy',
               'flathead','you simpleton','wacky','dingaling','knucklehead mcspazatron','you pickle','you dunce','you juicy tangerine','big boy','you failure',
               'you single-celled organism','or I will','or I\'ll do nasty things to you','or else','you slapwhackus','or I will shut this game off','and pay better attention next time']
@@ -647,6 +667,7 @@ def apply_save():
 def write_words():
     save_data = {}
     save_data['prefix_words'] = prefix_words
+    save_data['miss_words'] = miss_words
     save_data['potion_words'] = potion_words
     save_data['weapon_words'] = weapon_words
     save_data['monster_words'] = monster_words
@@ -669,6 +690,7 @@ if os.path.exists('zeroy_data.json'):
                 sys.exit()
         prefix_words = data['prefix_words']
         potion_words = data['potion_words']
+        miss_words = data['miss_words']
         weapon_words = data['weapon_words']
         monster_words = data['monster_words']
         exclamations = data['exclamations']
@@ -746,12 +768,12 @@ def attack(c,a):
             if (accuracy(c)+r+weapon(c)[3])-a[5] >= 1:
                 r = random.randint(0,5)
             else:
-                print(name(c),'missed.')
+                print(name(c),misw())
                 return
         else:
             r = random.randint(0,5)
     else:
-        print(name(c),'missed.')
+        print(name(c),misw())
         return
     at = strength(c) + (weapon(c)[1])
     de = defense(a) + (weapon(a)[2])
